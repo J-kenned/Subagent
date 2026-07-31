@@ -1,0 +1,49 @@
+{
+  "workspaces": {
+    "roots": ["~/GitHub"],
+    "named": {
+      "vault": "~/Documents/my-vault"
+    }
+  },
+
+  "providers": {
+    "claude": {
+      "enabled": true,
+      "maxPermission": "auto",
+      "models": []
+    },
+    "codex": {
+      "enabled": true,
+      "maxPermission": "edit",
+      "models": []
+    },
+    "cursor": {
+      "enabled": true,
+      "maxPermission": "auto",
+      "models": []
+    },
+    "kiro": {
+      "enabled": true,
+      "maxPermission": "edit",
+      "models": []
+    }
+  },
+
+  "policy": {
+    "allowBypass": false,
+    "maxConcurrent": 4,
+    "maxConcurrentPerProvider": 2,
+    "defaultPermission": "edit",
+    "defaultTimeoutMs": 1800000,
+    "bridgeByDefault": true,
+    "bridgeMaxBytes": 32768
+  },
+
+  "retention": {
+    "compressAfterDays": 7,
+    "maxAgeDays": 14,
+    "maxRuns": 200,
+    "pruneOnStartup": true,
+    "pruneOnSpawn": true
+  }
+}

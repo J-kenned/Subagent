@@ -1,0 +1,11 @@
+{
+  "name": "subagent",
+  "owner": { "name": "J-kenned" },
+  "plugins": [
+    {
+      "name": "subagent",
+      "source": "./plugin",
+      "description": "Dispatch coding agents — claude, codex, cursor, kiro — into any workspace, locally or in the cloud."
+    }
+  ]
+}

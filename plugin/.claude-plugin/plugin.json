@@ -1,0 +1,34 @@
+{
+  "name": "subagent",
+  "version": "0.1.0",
+  "description": "Dispatch coding agents — claude, codex, cursor, kiro — into any workspace, locally or in the cloud.",
+  "mcpServers": {
+    "subagent": {
+      "command": "node",
+      "args": ["${pluginDir}/../dist/server.js"],
+      "env": {}
+    }
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PLUGIN_ROOT/hooks/report-completions.mjs\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PLUGIN_ROOT/hooks/report-completions.mjs\""
+          }
+        ]
+      }
+    ]
+  }
+}
