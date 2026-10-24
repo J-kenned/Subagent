@@ -322,6 +322,16 @@ describe("codex adapter", () => {
     expect(sandboxFor("edit")).toBe("workspace-write");
     expect(sandboxFor("bypass")).toBe("danger-full-access");
   });
+
+  it("passes --skip-git-repo-check so non-git workspaces are dispatchable", () => {
+    const inv = codexAdapter.plan(
+      { runId: "r", provider: "codex", target: "local", prompt: "p", cwd: "/repo", permission: "read", extraDirs: [] },
+      { kind: "spawn" },
+      { bin: "codex", env: {} },
+    );
+    if (inv.transport !== "cli") throw new Error("expected cli");
+    expect(inv.argv).toContain("--skip-git-repo-check");
+  });
 });
 
 describe("outcome derivation across providers", () => {

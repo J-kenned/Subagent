@@ -9,17 +9,38 @@ import type {
   StreamParser,
 } from "./types.js";
 import type { Artifact, DraftEvent, Outcome, PermissionTier, RunSpec } from "../types.js";
+import { existsSync } from "node:fs";
+import { delimiter, join } from "node:path";
 import { NdjsonSplitter, probe, tail, withBridgedPrefix } from "./util.js";
 
 /**
- * OpenAI Codex CLI.
+ * OpenAI Codex CLI (`codex exec`), validated against codex-cli 0.146.0.
  *
- * NOTE: `codex` is not installed on the development machine, so this adapter is
- * written from published flag documentation and exercised only through fixture
- * tests. The parser is deliberately tolerant of shape drift: it recognises
- * several known event envelopes and degrades to `lifecycle` rather than
- * throwing on anything it does not know.
+ * The binary is not always on PATH: on macOS the Codex CLI ships bundled inside
+ * the ChatGPT desktop app rather than as an npm/global install, so a plain
+ * `codex` lookup fails even when Codex is present. `resolveCodexBin` prefers a
+ * PATH `codex`, then falls back to the known bundle location; a configured
+ * `providers.codex.bin` still overrides both.
+ *
+ * The parser stays deliberately tolerant of shape drift: it recognises several
+ * known event envelopes and degrades to `lifecycle` rather than throwing on
+ * anything it does not know.
  */
+
+/** Where the ChatGPT desktop app bundles the Codex CLI on macOS. */
+const CHATGPT_BUNDLED_CODEX = "/Applications/ChatGPT.app/Contents/Resources/codex";
+
+function onPath(bin: string): boolean {
+  const dirs = (process.env["PATH"] ?? "").split(delimiter);
+  return dirs.some((d) => d !== "" && existsSync(join(d, bin)));
+}
+
+/** PATH `codex` wins for portability; otherwise fall back to the macOS bundle. */
+function resolveCodexBin(): string {
+  if (onPath("codex")) return "codex";
+  if (existsSync(CHATGPT_BUNDLED_CODEX)) return CHATGPT_BUNDLED_CODEX;
+  return "codex";
+}
 
 const capabilities: Capabilities = {
   stream: "ndjson",
@@ -150,7 +171,7 @@ export const codexAdapter: AgentAdapter = {
   displayName: "OpenAI Codex",
   transport: "cli",
   capabilities,
-  defaultBin: "codex",
+  defaultBin: resolveCodexBin(),
   envAllowlist: ["PATH", "HOME", "SHELL", "LANG", "TERM", "TMPDIR", "OPENAI_API_KEY", "CODEX_HOME"],
 
   async preflight(env: AdapterEnv): Promise<AuthState> {
@@ -159,8 +180,10 @@ export const codexAdapter: AgentAdapter = {
       return {
         installed: false,
         authenticated: false,
-        reason: `${env.bin} not found on PATH`,
-        remedy: "npm i -g @openai/codex",
+        reason: `${env.bin} not found`,
+        remedy:
+          "Install the Codex CLI (ships with the ChatGPT desktop app, or `brew install --cask codex`) " +
+          `and set providers.codex.bin to its path, e.g. ${CHATGPT_BUNDLED_CODEX}`,
       };
     }
     if (process.env["OPENAI_API_KEY"]) {
@@ -180,7 +203,11 @@ export const codexAdapter: AgentAdapter = {
   },
 
   plan(spec: RunSpec, ctx: PlanContext, env: AdapterEnv): Invocation {
-    const argv = ["exec", "--json", "--sandbox", SANDBOX_FLAG[spec.permission], "--cd", spec.cwd];
+    // `codex exec` refuses to run outside a Git repo / trusted directory unless
+    // told otherwise. This server already gates which workspaces may be entered
+    // (deny-by-default roots), so codex's own repo check is redundant friction —
+    // without this, dispatching into any non-git workspace fails immediately.
+    const argv = ["exec", "--json", "--skip-git-repo-check", "--sandbox", SANDBOX_FLAG[spec.permission], "--cd", spec.cwd];
     if (spec.model) argv.push("--model", spec.model);
 
     if (ctx.kind === "resume") {
